@@ -1,9 +1,9 @@
 import type { MultipleQueriesQuery as AlgoliaMultipleQueriesQuery } from '@algolia/client-search'
 import { transformRequest } from './transformRequest'
 import transformResponse, { transformFacetValuesResponse } from './transformResponse'
-import { SearchkitConfig, SearchRequest, RequestOptions, Transporter, AppSettings } from './types'
+import type { SearchkitConfig, SearchRequest, RequestOptions, Transporter, AppSettings } from './types'
 import { ESTransporter } from './Transporter'
-import { getQueryRulesActionsFromRequest, QueryRuleActions } from './queryRules'
+import { getQueryRulesActionsFromRequest, type QueryRuleActions } from './queryRules'
 import { createElasticsearchQueryFromRequest } from './utils'
 import { getIndexName } from './sorting'
 export * from './types'
@@ -35,10 +35,10 @@ export default class Searchkit {
     }
   }
 
-  async handleInstantSearchRequests(
+  transformRequests(
     instantsearchRequests: readonly AlgoliaMultipleQueriesQuery[],
     requestOptions?: RequestOptions
-  ) {
+  ): SearchRequest[] {
     if (!instantsearchRequests || Array.isArray(instantsearchRequests) === false) {
       console.log({ instantsearchRequests })
       throw new Error(
@@ -52,7 +52,7 @@ export default class Searchkit {
       return getQueryRulesActionsFromRequest(queryRules, request, this.config.search_settings)
     })
 
-    let esRequests: SearchRequest[] = instantsearchRequests.map((request, i) => ({
+    return instantsearchRequests.map((request, i) => ({
       body: transformRequest(
         request,
         this.config.search_settings,
@@ -62,6 +62,19 @@ export default class Searchkit {
       request: request,
       indexName: getIndexName(request.indexName, this.config.search_settings)
     }))
+  }
+
+  async handleInstantSearchRequests(
+    instantsearchRequests: readonly AlgoliaMultipleQueriesQuery[],
+    requestOptions?: RequestOptions
+  ) {
+    const queryRules = this.config.search_settings.query_rules || []
+
+    const requestQueryRuleActions: QueryRuleActions[] = instantsearchRequests.map((request) => {
+      return getQueryRulesActionsFromRequest(queryRules, request, this.config.search_settings)
+    })
+
+    let esRequests: SearchRequest[] = this.transformRequests(instantsearchRequests, requestOptions)
 
     if (requestOptions?.hooks?.beforeSearch) {
       esRequests = await requestOptions.hooks.beforeSearch(esRequests)
