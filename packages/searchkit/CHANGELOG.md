@@ -1,5 +1,35 @@
 # searchkit
 
+## 4.16.0
+
+### Minor Changes
+
+- 9b14e004: fixed infinite loader error
+
+## 4.15.0
+
+### Minor Changes
+
+- Nested sorting support
+
+## 4.14.1
+
+### Patch Changes
+
+- fixed issue with build
+
+## 4.14.0
+
+### Minor Changes
+
+- Updated filter splitter and error handling
+
+## 4.13.3
+
+### Patch Changes
+
+- Support colons in facet values
+
 ## 4.13.2
 
 ### Patch Changes

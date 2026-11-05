@@ -4,6 +4,22 @@ import type Searchkit from 'searchkit'
 interface InstantSearchElasticsearchAdapterConfig {
   url: string
   headers?: Record<string, string> | (() => Record<string, string>)
+  onError?: (error: Error) => boolean | void
+}
+
+function createEmptyResult(request: MultipleQueriesQuery) {
+  return {
+    hits: [],
+    nbHits: 0,
+    nbPages: 0,
+    page: 0,
+    processingTimeMS: 0,
+    hitsPerPage: request.params?.hitsPerPage ?? 20,
+    exhaustiveNbHits: true,
+    query: request.params?.query ?? '',
+    params: '',
+    index: request.indexName
+  }
 }
 
 type Config = InstantSearchElasticsearchAdapterConfig | Searchkit
@@ -41,14 +57,24 @@ class InstantSearchElasticsearchAdapter {
     return headers
   }
 
-  public async search(instantsearchRequests: readonly MultipleQueriesQuery[]): Promise<any> {
-    try {
-      const key = JSON.stringify(instantsearchRequests)
-      const cacheValue = this.cache[key]
-      if (cacheValue) {
-        return cacheValue
-      }
+  private handleError(error: Error, requests: readonly MultipleQueriesQuery[]) {
+    const suppressLog = this.config && !isSearchkit(this.config) && this.config.onError?.(error)
+    if (!suppressLog) {
+      console.error('Searchkit InstantSearch Client error:', error.message)
+    }
+    return {
+      results: requests.map((request) => createEmptyResult(request))
+    }
+  }
 
+  public async search(instantsearchRequests: readonly MultipleQueriesQuery[]): Promise<any> {
+    const key = JSON.stringify(instantsearchRequests)
+    const cacheValue = this.cache[key]
+    if (cacheValue) {
+      return cacheValue
+    }
+
+    try {
       if (isSearchkit(this.config)) {
         const results = await this.config.handleInstantSearchRequests(
           instantsearchRequests,
@@ -67,12 +93,25 @@ class InstantSearchElasticsearchAdapter {
         method: 'POST'
       })
 
+      if (!response.ok) {
+        const errorResult = this.handleError(
+          new Error(`Search request failed with status ${response.status}: ${response.statusText}`),
+          instantsearchRequests
+        )
+        this.cache[key] = errorResult
+        return errorResult
+      }
+
       const results = await response.json()
       this.cache[key] = results
       return results
-    } catch (e) {
-      console.error(e)
-      return []
+    } catch (error) {
+      const errorResult = this.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        instantsearchRequests
+      )
+      this.cache[key] = errorResult
+      return errorResult
     }
   }
 
@@ -104,10 +143,23 @@ class InstantSearchElasticsearchAdapter {
         method: 'POST'
       })
 
+      if (!response.ok) {
+        const error = new Error(`Search request failed with status ${response.status}: ${response.statusText}`)
+        const suppressLog = this.config && !isSearchkit(this.config) && this.config.onError?.(error)
+        if (!suppressLog) {
+          console.error('Searchkit InstantSearch Client error:', error.message)
+        }
+        return []
+      }
+
       const results = await response.json()
       return results.results
-    } catch (e) {
-      console.error(e)
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      const suppressLog = this.config && !isSearchkit(this.config) && (this.config as InstantSearchElasticsearchAdapterConfig).onError?.(err)
+      if (!suppressLog) {
+        console.error('Searchkit InstantSearch Client error:', err.message)
+      }
       return []
     }
   }

@@ -219,6 +219,7 @@ Attributes that are used to configure the search experience.
 - `snippet_attributes` - Attributes that are used for highlighting search results for long fields.
 - `sorting` - Attributes that are used to create sorting options. Sorting can be a single sorting field or multiple.
 - `query_rules` - Rules that affect search relevance. See [Query Rules](/docs//query-rules) for more information.
+- `fuzziness` - The [fuzziness](https://www.elastic.co/guide/en/elasticsearch/reference/current/common-options.html#fuzziness) that should be used for text queries. Defaults to `AUTO:4,8`.
 - `geo_attribute` - Attribute that is used for geo based searches.
 - `runtime_mappings` - Runtime mappings that are used to transform fields in the search results. See [Runtime Mappings](/docs/guides/runtime-mappings) for more information. Once used, you are able to use the transformed field in the `search_attributes`, `result_attributes`, `facet_attributes` and `filter_attributes` configuration.
 
@@ -279,7 +280,7 @@ Below is an example of a `RefinementList` Instantsearch React component that use
 <RefinementList attribute="actors" searchable={true} limit={10} />
 ```
 
-See [facets guide](/docs/guides/facets) for more information.
+See [facets guide](/docs/guides/facets/string-based-facets) for more information.
 
 ##### Custom Aggregations & Filter Queries
 
